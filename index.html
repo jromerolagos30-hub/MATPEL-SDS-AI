@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generador MATPEL SDS/FDS - NFPA y SGA</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <img id="headerLogo" src="logo.png" alt="Logo empresa" />
+    <div>
+      <h1>Generador de Señalización MATPEL</h1>
+      <p>Versión 1 · SDS/FDS → rótulo A3 horizontal · NFPA 704 + SGA/GHS</p>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel">
+      <h2>1. Configuración</h2>
+      <label>URL Web App de Google Apps Script</label>
+      <input id="gasUrl" placeholder="https://script.google.com/macros/s/.../exec" />
+      <small>El backend extrae el texto del PDF y analiza la SDS/FDS. Si configuraste OPENAI_API_KEY en Apps Script, usará IA; si no, usará reglas técnicas.</small>
+
+      <label>Logo de la empresa / contratista</label>
+      <input id="logoFile" type="file" accept="image/png,image/jpeg,image/webp" />
+      <small>El logo se insertará automáticamente en el encabezado del rótulo y en la descarga.</small>
+
+      <h2>2. Cargar SDS/FDS</h2>
+      <input id="pdfFile" type="file" accept="application/pdf" />
+      <button id="analyzeBtn">Analizar SDS/FDS y generar rótulo</button>
+      <button id="demoBtn" class="secondary">Probar con ejemplo</button>
+
+      <details>
+        <summary>Entrada manual / revisión técnica</summary>
+        <textarea id="manualText" rows="10" placeholder="Pega texto de la SDS/FDS o ajusta el JSON técnico si quieres revisar..."></textarea>
+        <button id="manualBtn" class="secondary">Generar desde texto pegado</button>
+      </details>
+
+      <h2>3. Revisión y descarga</h2>
+      <button id="pngBtn" disabled>Descargar imagen PNG</button>
+      <button id="pdfBtn" disabled>Descargar PDF A3 horizontal</button>
+      <button id="jsonBtn" disabled>Descargar JSON técnico</button>
+
+      <div id="status" class="status">Listo para cargar SDS/FDS.</div>
+      <div class="warning"><b>Nota técnica:</b> La señalización generada debe ser validada por un especialista HSE/MATPEL antes de imprimir y usar en campo.</div>
+    </section>
+
+    <section class="previewWrap">
+      <div id="poster" class="poster a3">
+        <div class="placeholder">Carga una SDS/FDS para generar el rótulo.</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
