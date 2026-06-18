@@ -1,57 +1,176 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Generador MATPEL SDS/FDS - NFPA y SGA</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MATPEL SDS AI - Generador de Rótulos</title>
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
   <header class="topbar">
-    <img id="headerLogo" src="logo.png" alt="Logo empresa" />
-    <div>
-      <h1>Generador de Señalización MATPEL</h1>
-      <p>Versión 1 · SDS/FDS → rótulo A3 horizontal · NFPA 704 + SGA/GHS</p>
+    <div class="brand">
+      <img id="headerLogo" src="logo.png" alt="Logo empresa" />
+      <div>
+        <h1>MATPEL SDS AI</h1>
+        <p>Generador de señalización MATPEL desde Hojas SDS/FDS</p>
+      </div>
     </div>
+    <span class="badge">V2 pública · API Key del usuario</span>
   </header>
 
   <main class="layout">
-    <section class="panel">
+    <section class="panel controls">
       <h2>1. Configuración</h2>
-      <label>URL Web App de Google Apps Script</label>
-      <input id="gasUrl" placeholder="https://script.google.com/macros/s/.../exec" />
-      <small>El backend extrae el texto del PDF y analiza la SDS/FDS. Si configuraste OPENAI_API_KEY en Apps Script, usará IA; si no, usará reglas técnicas.</small>
 
-      <label>Logo de la empresa / contratista</label>
-      <input id="logoFile" type="file" accept="image/png,image/jpeg,image/webp" />
-      <small>El logo se insertará automáticamente en el encabezado del rótulo y en la descarga.</small>
+      <label class="field">
+        <span>Logo de la empresa</span>
+        <input type="file" id="logoInput" accept="image/*" />
+        <small>El logo solo se usa en esta sesión. No se almacena.</small>
+      </label>
 
-      <h2>2. Cargar SDS/FDS</h2>
-      <input id="pdfFile" type="file" accept="application/pdf" />
-      <button id="analyzeBtn">Analizar SDS/FDS y generar rótulo</button>
-      <button id="demoBtn" class="secondary">Probar con ejemplo</button>
+      <label class="field">
+        <span>PDF SDS/FDS</span>
+        <input type="file" id="pdfInput" accept="application/pdf" />
+      </label>
 
-      <details>
-        <summary>Entrada manual / revisión técnica</summary>
-        <textarea id="manualText" rows="10" placeholder="Pega texto de la SDS/FDS o ajusta el JSON técnico si quieres revisar..."></textarea>
-        <button id="manualBtn" class="secondary">Generar desde texto pegado</button>
-      </details>
+      <label class="field">
+        <span>API Key OpenAI del usuario</span>
+        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off" />
+        <small>Opcional. Si no colocas API Key, usa modo manual/reglas básicas.</small>
+      </label>
 
-      <h2>3. Revisión y descarga</h2>
-      <button id="pngBtn" disabled>Descargar imagen PNG</button>
-      <button id="pdfBtn" disabled>Descargar PDF A3 horizontal</button>
-      <button id="jsonBtn" disabled>Descargar JSON técnico</button>
+      <div class="actions">
+        <button id="extractBtn">Extraer texto SDS</button>
+        <button id="aiBtn" class="primary">Analizar con IA</button>
+        <button id="basicBtn">Modo básico</button>
+      </div>
 
-      <div id="status" class="status">Listo para cargar SDS/FDS.</div>
-      <div class="warning"><b>Nota técnica:</b> La señalización generada debe ser validada por un especialista HSE/MATPEL antes de imprimir y usar en campo.</div>
+      <div class="notice">
+        <b>Costos:</b> los tokens los asume cada usuario con su propia API Key. Esta página no guarda claves ni PDFs.
+      </div>
+
+      <h2>2. Datos del rótulo</h2>
+      <div class="formgrid">
+        <label>Producto <input id="productName" value="PRODUCTO QUÍMICO"></label>
+        <label>Uso <input id="productUse" value="Uso según SDS"></label>
+        <label>CAS <input id="casNumber" value="No aplica / No indicado"></label>
+        <label>Palabra GHS <input id="signalWord" value="No aplica"></label>
+        <label>Salud NFPA <input id="nfpaHealth" type="number" min="0" max="4" value="1"></label>
+        <label>Inflamabilidad NFPA <input id="nfpaFire" type="number" min="0" max="4" value="1"></label>
+        <label>Reactividad NFPA <input id="nfpaReact" type="number" min="0" max="4" value="0"></label>
+        <label>Especial NFPA <input id="nfpaSpecial" value="-"></label>
+      </div>
+
+      <label class="field">
+        <span>Pictogramas GHS</span>
+        <select id="ghsSelect" multiple>
+          <option value="GHS01">GHS01 Explosivo</option>
+          <option value="GHS02">GHS02 Inflamable</option>
+          <option value="GHS03">GHS03 Comburente</option>
+          <option value="GHS04">GHS04 Gas a presión</option>
+          <option value="GHS05">GHS05 Corrosivo</option>
+          <option value="GHS06">GHS06 Toxicidad aguda</option>
+          <option value="GHS07">GHS07 Irritante</option>
+          <option value="GHS08">GHS08 Peligro salud</option>
+          <option value="GHS09">GHS09 Ambiente</option>
+        </select>
+      </label>
+
+      <label class="field"><span>EPP</span><textarea id="ppeText">Gafas de seguridad&#10;Guantes de protección&#10;Ropa de trabajo&#10;Protección respiratoria si hay ventilación insuficiente</textarea></label>
+      <label class="field"><span>Riesgos principales</span><textarea id="riskText">Puede causar irritación leve.&#10;Evitar contacto prolongado.&#10;No clasificado como peligroso según SDS.</textarea></label>
+      <label class="field"><span>Primeros auxilios</span><textarea id="firstAidText">Ojos: Enjuagar con agua.&#10;Piel: Lavar con agua y jabón.&#10;Inhalación: Trasladar al aire fresco.&#10;Ingestión: No inducir el vómito y buscar atención médica si hay síntomas.</textarea></label>
+      <label class="field"><span>Almacenamiento y manejo</span><textarea id="storageText">Almacenar en envase original cerrado.&#10;Mantener en lugar fresco, seco y ventilado.&#10;Mantener alejado de materiales incompatibles.&#10;Lavarse las manos después del uso.</textarea></label>
+      <label class="field"><span>Medio ambiente</span><textarea id="envText">Evitar derrames al suelo, desagües y cuerpos de agua.</textarea></label>
+      <label class="field"><span>Eliminación</span><textarea id="disposalText">Eliminar el contenido/recipiente según normativa local y nacional vigente.</textarea></label>
+
+      <div class="actions">
+        <button id="renderBtn" class="primary">Actualizar rótulo</button>
+        <button id="pngBtn">Descargar PNG</button>
+        <button id="pdfBtn">Descargar PDF A3 horizontal</button>
+      </div>
     </section>
 
-    <section class="previewWrap">
-      <div id="poster" class="poster a3">
-        <div class="placeholder">Carga una SDS/FDS para generar el rótulo.</div>
+    <section class="panel previewPanel">
+      <h2>Vista previa</h2>
+      <div id="status" class="status">Carga una SDS o completa los campos manualmente.</div>
+
+      <div id="poster" class="poster">
+        <div class="posterHeader">
+          <div class="headerTitle">SUSTANCIA QUÍMICA</div>
+          <img id="posterLogo" src="logo.png" alt="Logo" />
+        </div>
+
+        <div class="grid topGrid">
+          <div class="card nfpaCard">
+            <h3>NFPA 704</h3>
+            <div class="nfpa">
+              <div class="diamond fire"><span id="nfpaFireOut">1</span></div>
+              <div class="diamond health"><span id="nfpaHealthOut">1</span></div>
+              <div class="diamond react"><span id="nfpaReactOut">0</span></div>
+              <div class="diamond special"><span id="nfpaSpecialOut">-</span></div>
+            </div>
+            <div class="legend">
+              <b>AZUL - SALUD</b><span id="healthLegend">1 = Riesgo leve.</span>
+              <b class="red">ROJO - INFLAMABILIDAD</b><span id="fireLegend">1 = Combustible si se calienta.</span>
+              <b class="yellow">AMARILLO - REACTIVIDAD</b><span>0 = Estable.</span>
+            </div>
+          </div>
+
+          <div class="card productCard">
+            <h2 id="productNameOut">PRODUCTO QUÍMICO</h2>
+            <div class="subtitle" id="productUseOut">Uso según SDS</div>
+            <p><b>CAS:</b> <span id="casOut">No aplica / No indicado</span></p>
+          </div>
+
+          <div class="card ghsCard">
+            <h3 id="signalWordOut">NO CLASIFICADO<br>SGA / GHS</h3>
+            <p id="ghsClassOut">Sin pictogramas GHS. Sin palabra de advertencia.</p>
+            <div id="ghsIcons" class="ghsIcons"></div>
+          </div>
+        </div>
+
+        <div class="grid midGrid">
+          <div class="card">
+            <h3>EPP RECOMENDADO</h3>
+            <div id="ppeOut" class="iconList"></div>
+          </div>
+          <div class="card">
+            <h3>RIESGOS PRINCIPALES</h3>
+            <ul id="riskOut"></ul>
+          </div>
+          <div class="card">
+            <h3>MEDIO AMBIENTE</h3>
+            <div class="eco">🌿</div>
+            <p id="envOut"></p>
+          </div>
+        </div>
+
+        <div class="grid bottomGrid">
+          <div class="card">
+            <h3>PRIMEROS AUXILIOS</h3>
+            <ul id="firstAidOut"></ul>
+          </div>
+          <div class="card">
+            <h3>ALMACENAMIENTO Y MANEJO</h3>
+            <ul id="storageOut"></ul>
+          </div>
+          <div class="card">
+            <h3>ELIMINACIÓN</h3>
+            <div class="trash">🗑️</div>
+            <p id="disposalOut"></p>
+          </div>
+        </div>
+
+        <div class="footer">NO REGULADO COMO MERCANCÍA PELIGROSA PARA TRANSPORTE TERRESTRE, MARÍTIMO Y AÉREO</div>
       </div>
+
+      <details>
+        <summary>Texto extraído de la SDS</summary>
+        <textarea id="sdsText" readonly></textarea>
+      </details>
     </section>
   </main>
 
